@@ -8,7 +8,7 @@ export interface Trigram {
   export interface Hexagram {
     name: string;
     judgment: string;
-    xiang?: string;
+    xiang: string;
     lines: string[];
   }
   

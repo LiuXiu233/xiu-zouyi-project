@@ -140,37 +140,52 @@ export default function HexagramGenerator() {
             };
 
             setResult({
-                lunarDate: `${lunar.getYearInGanZhi()}年 ${lunarMonth}月${lunarDay}日 ${zodiacHour.zodiac}时`,
+                lunarDate: `${lunar.getYearInGanZhi()}年 ${lunar.getMonthInChinese()}月${lunar.getDayInChinese()} ${zodiacHour.zodiac}时`,
                 random,
                 upper,
                 lower,
                 movingLine,
                 hexagram
             });
+            const handleAIError = (code: string) => {
+                const errorMap: { [key: string]: string } = {
+                    'invalid_api_key': 'AI密钥无效',
+                    'context_length_exceeded': '输入过长请简化',
+                    'rate_limit_exceeded': '请求速度过快，稍后重试'
+                }
+
+                setAiResult(errorMap[code] || '解析服务暂时不可用');
+                setLoading(false);
+            }
 
             // 调用AI请求
-            const response = await fetch('/api/ai', {
+            const response = await fetch('/api/openai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    prompt: `请解析此卦象：
-            - 本卦：${hexagram.name}
-            - 卦辞：${hexagram.judgment}
-             ${hexagram.xiang ? `- 象辞：${hexagram.xiang}\n` : ''}
-            - 动爻：第${movingLine}爻（${hexagram.lines[movingLine - 1] || '无数据'}）
-            请用专业周易知识综合分析，生成20字运势总结`
+                    prompt: `解析卦象：
+                    【主卦】${hexagram.name}
+                    【卦辞】"${hexagram.judgment}"
+                    【动爻】第${movingLine}爻："${hexagram.lines[movingLine - 1]}
+                    【象辞】"${hexagram.xiang}"
+                    请用专业周易知识综合分析，生成20字运势总结"`
                 })
             });
 
             const data = await response.json();
-            setAiResult(data.result || '解读失败');
-        } catch (error) {
-            console.error('生成失败:', error);
-            setAiResult('系统错误，请稍后重试');
-        } finally {
+            if (!response.ok) {
+                handleAIError(data.code);
+                return;
+            }
+
+            setAiResult(data.result);
             setLoading(false);
+        } catch (error) {
+            console.error('Network error:', error);
         }
-    };
+    }
+
+    // 错误处理示例
 
     return (
         <div className="container">
@@ -180,9 +195,7 @@ export default function HexagramGenerator() {
 
             {result && (
                 <div className="result">
-                    <h3>当前参数</h3>
                     <p>农历时间：{result.lunarDate}</p>
-                    <p>随机数：{result.random}</p>
 
                     <h3>卦象解析</h3>
                     <div className="hexagram-symbol">
@@ -194,8 +207,10 @@ export default function HexagramGenerator() {
                     </div>
                     <p>本卦：{result.hexagram.name}</p>
                     <p>卦辞：{result.hexagram.judgment}</p>
+                    <p>{result.hexagram.xiang}</p>
 
-                    <h3>动爻信息</h3>
+
+                    <h3>动爻</h3>
                     <p>第<span className="highlight">{result.movingLine}</span>爻</p>
                     <p>{result.hexagram.lines[result.movingLine - 1] || '无爻辞数据'}</p>
                 </div>
@@ -203,10 +218,11 @@ export default function HexagramGenerator() {
 
             {aiResult && (
                 <div className="ai-result">
-                    <h4>AI解读</h4>
+                    <h4>大师解读</h4>
                     <p>{aiResult}</p>
                 </div>
             )}
         </div>
     );
 }
+
